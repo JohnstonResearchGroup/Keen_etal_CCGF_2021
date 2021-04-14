@@ -1,0 +1,850 @@
+%% ****** Start of file aiptemplate.tex ****** %
+%%
+%%   This file is part of the files in the distribution of AIP substyles for REVTeX4.
+%%   Version 4.1 of 9 October 2009.
+%%
+%
+% This is a template for producing documents for use with 
+% the REVTEX 4.1 document class and the AIP substyles.
+% 
+% Copy this file to another name and then work on that file.
+% That way, you always have this original template file to use.
+
+%\documentclass[aip,graphicx]{revtex4-1}
+\documentclass[aip,reprint,table,xcdraw,usenames,dvipsnames]{revtex4-1}
+\usepackage{amsmath}
+\usepackage[resetlabels,labeled]{multibib}
+\usepackage{mathrsfs}
+\usepackage{cases}
+\usepackage{mathtools}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\usepackage[table,xcdraw]{xcolor}
+%\usepackage[dvipsnames]{xcolor}
+%\usepackage{caption}
+\usepackage{times}
+\usepackage{hyperref}
+\usepackage{todonotes}
+\usepackage{qcircuit}
+\usepackage{graphicx}
+\usepackage[T1]{fontenc} % celtic
+\usepackage[utf8]{inputenc} % celtic
+\usepackage{amsfonts} %celtic
+\usepackage{bm}
+\usepackage{physics}
+\usepackage{verbatim}
+
+%\usepackage{color}  %debug debug debug 
+\usepackage{amsthm}
+\newtheorem{thm}{Theorem}
+\newtheorem{cor}{Corollary}
+\newtheorem{prop}{Proposition}
+\newtheorem{defin}{Definition}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{soul}
+
+\newcommand{\vertiii}[1]{{\left\vert\kern-0.25ex\left\vert\kern-0.25ex\left\vert #1 
+    \right\vert\kern-0.25ex\right\vert\kern-0.25ex\right\vert}}
+
+
+
+\newcommand{\ghl}[1]{{\color{Blue}[G.H.: #1]}}
+\newcommand{\pl}[1]{\textcolor{Green}{[PL: #1]}}
+\newcommand{\bp}[1]{\textcolor{SkyBlue}{[BP: #1]}}
+\newcommand{\bigo}[1]{$\mathcal{O} (#1)$}
+\newcommand{\tk}[1]{\textcolor{Orange}{[TK: #1]}}
+\usepackage{hyperref}
+\usepackage[capitalise,nameinlink]{cleveref}
+%\usepackage[usenames,dvipsnames]{xcolor}
+\hypersetup{
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=Maroon,          % color of internal links (change box color with linkbordercolor)
+    citecolor=OliveGreen,        % color of links to bibliography
+    filecolor=magenta,      % color of file links
+    urlcolor=Blue           % color of external links
+}
+\crefname{ansatz}{Ansatz.}{Ansatzes.}
+
+\draft % marks overfull lines with a black rule on the right
+
+%\newcites{Math}{Math Readings}
+\newcites{Supp}{Supplement References}
+
+
+\begin{document}
+
+
+
+\title{Hybrid quantum-classical approach for coupled-cluster Green's function theory}
+
+
+\author{Trevor Keen} 
+\email{tkeen1@vols.utk.edu} 
+\address{Department of Physics and Astronomy, University of Tennessee, Knoxville, Tennessee 377996, United States of America}
+\author{Bo Peng}
+\email{peng398@pnnl.gov} 
+\address{Physical Sciences and Computational Division, Pacific Northwest National Laboratory, Richland, Washington 99354, United States of America}
+\author{Karol Kowalski}
+\email{karol.kowalski@pnnl.gov} 
+\address{Physical Sciences and Computational Division, Pacific Northwest National Laboratory, Richland, Washington 99354, United States of America}
+\author{Pavel Lougovski}
+\thanks{Presently at Amazon Web Services}
+\email{plougovski@gmail.com}
+\address{Quantum Information Science Group, Computational Sciences and Engineering Division, Oak Ridge National Laboratory, Oak Ridge, Tennessee 37831, United States of America}
+\author{Steven Johnston}
+\email{sjohn145@utk.edu} 
+\address{Department of Physics and Astronomy, University of Tennessee, Knoxville, Tennessee 377996, United States of America}
+\date{October 2020}
+
+\date{\today}
+
+\begin{abstract}
+Quantum simulations of a fermionic system involve three key elements: state preparation, dynamics, and measurement. While the complexity scaling of dynamics and measurements are well known, many state preparation methods are strongly system-dependent and require prior knowledge such as the size of the spectral gap. Here, we report on a quantum-classical implementation of 
+the coupled-cluster Green's function (CCGF) method, which completely bypasses the issue of state preparation. While our approach is broadly applicable to a wide range of models, we demonstrate it here for the Anderson impurity model (AIM). The method requires a number of T-gates that grows as $ \mathcal{O} \left(N^5 \right)$ per time step to calculate the impurity Green's function in the time domain, where $N$ is the total number of energy levels in the AIM. For comparison, a classical CCGF calculation of the same order would require computational resources that grow as $ \mathcal{O} \left(N^6 \right)$ per time step.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction} 
+Quantum simulation of fermionic systems frequently involve three primary components, namely: state preparation, evaluating the system's dynamics, and measuring the relevant observable. While the complexity of implementing dynamics and measurements on a quantum device are well known, the complexity of state preparation often depends strongly on the nature of the system and its ground state. Estimating the complexity of state preparation thus requires some knowledge of the system, usually in the form of the size of the spectral gap. In fact, the gate complexity of many algorithms scales as the inverse of some polynomial function of the spectral gap, which can become an issue for systems with small gaps. Here, we propose a method that utilizes classical coupled-cluster (CC) methods to completely eliminate the complexity of quantum state preparation, which requires no prior knowledge of the of the systems eigenvectors. While our method is versatile and can be broadly applied to many models of interest, here we benchmark its capabilities by applying it to solve the Anderson impurity model (AIM) (see Methods). 
+
+%In the simulation of physical systems, often the quantity of interest is the single-particle Green's function. For condensed matter applications, there are many classical methods to find the Green's function of a system. For example, methods like iterative perturbation theory \cite{PhysRevB.86.085133}, exact diagonalization (ED) \cite{Liebsch_2011}, Hirsch-Fye~\cite{PhysRevLett.56.2521} and 
+%continuous-time quantum Monte Carlo (QMC) \cite{Rubtsov, PhysRevB.74.155107, GullRMP2011}, and numerical renormalization group (NRG) \cite{RevModPhys.47.773, PhysRevB.94.195152}, have all been brought to bear on the AIM in its connection with dynamical mean-field theory (DMFT)\cite{Georges1992,Georges1996}. 
+%Each method has its limitations, however. For example, ED approximates the infinite system with a set of energy levels (or orbitals) while the size of the Hilbert space grows factorially in the system size. QMC-based methods similarly are limited by the Fermion sign problem, where the sampling error scaling exponentially with the inverse temperature (see Ref. \citenum{Gull2011} for a complete discussion). The sign problem is not present for all models, but it is severe for models with orbital degrees of freedom and strong inter-orbital interactions. Finally, NRG-based methods have typically have poor energy resolution at high energies.  
+
+%The coupled cluster (CC) method has also been developed to solve many-body problems 
+%\cite{coester58_421, coester60_477, cizek66_4256, paldus72_50, purvis82_1910}. 
+%For example, they have been deployed to compute the impurity coupled cluster Green's function (CCGF) \cite{nooijen92_55, nooijen93_15, nooijen95_1681} 
+%both for the AIM in the context of classical DMFT simulations and in 
+%other Green's function schemes for solving impurity models \cite{PhysRevB.100.115154,JCTC.15.6010}. The main advantage of the CCGF method is that its computational complexity scales polynomially with the size of the bath $n$ (e.g., $\mathcal{O}(n^6)$ for CCGF based on single and double excitations and $\mathcal{O}(n^8)$ with added triple excitations) as opposed to the exponential scaling of ED and  configuration-interaction (CI). The CCGF method can also provide size-extensive and systematically 
+%improvable results to achieve any required level of accuracy 
+%\cite{paldus07, bartlett07_291}. Nevertheless, in strongly correlated
+%regimes where many-body effect become significant, classical algorithms for computing reliable CCGFs in either the frequency or time domain become memory and storage constrained \cite{kowalski16_144101, kowalski18_4335, peng19_3185, vila20_6983}. %Here, the resource requirements are driven by the large memory and storage needed for describing the many-body states, sufficient propagation in the time domain, and/or well-converged linear-/eigen-solving processes 
+
+
+%Quantum computers alleviate this exponential classical memory
+%scaling found in ED and CI methods, even for strongly-correlated systems by storing and propagating the quantum many-body state in a number of qubits that grows linearly with system size. Quantum algorithms to simulate many-body dynamics also scale polynomially with the system's size, as shown in Table ~\ref{tab:scaling}. 
+%This makes quantum algorithms solving the AIM a popular approach in the literature \cite{Bauer2016, Bravyi2017, Jaderberg2020, Kreula2016}. 
+%Small-scale quantum DMFT and CCGF calculations adapted to the noisy intermediate scale quantum (NISQ) hardware have also begun to appear \cite{rungger2020dynamical, Keen_2020, PhysRevA.101.012330, PhysRevResearch.2.033281}. 
+
+%Any quantum algorithm to compute the Green's function of in the time domain consists of three major components: i) Initial quantum state preparation; ii) Unitary time dynamics under the Hamiltonian; iii) Green's function measurement.  
+While the computational complexity of implementing time-dynamics under the system Hamiltonian and measurement are well-understood and characterized, the initial state preparation typically presents a quantum computing challenge. For example, take the zero temperature Green's function computation. All current quantum algorithms for preparing the ground state of a many-body system require 
+prior knowledge of the system, typically the spectral gap in non-variational algorithms (e.g. quantum phase estimation (QPE)~\cite{Lin2020nearoptimalground} or adiabatic+QPE~\cite{Bauer2016} ), or the overlap between the ground state and the initial ansatz state in variational approaches~\cite{Wecker2015, Peruzzo2014,PhysRevResearch.2.033281}. If
+the spectral gap is $\Delta$, the ground state of the system can be prepared to fidelity $1-\epsilon$ with probability $1-\vartheta$ using\cite{Lin2020nearoptimalground} 
+$$
+\mathcal{O} \Bigg( \frac{m\alpha}{\gamma \Delta} \bigg( \log(\frac{\alpha}{\Delta}) \log(\frac{1}{\gamma}) \log (\frac{\log(\alpha/\Delta)}{\vartheta}) + \log(\frac{1}{\epsilon}) \bigg) \Bigg)
+$$
+other one and two qubit gates, \emph{not} including query complexity of the block encodings of the Hamiltonian and trial state preparation. Here, $\alpha$ and $m$ describe the block encoding of the Hamiltonian of the system and $\gamma$ is the lower bound on the overlap of the initial trial state with the ground state. If a many-body system has a small spectral gap or the overlap $\gamma$ is exponentially small, initial state preparation cost may dominate the computation.  
+
+
+
+%However, the lower bounds for the ground
+%state energy and trial state overlap ($\Delta$ and $\gamma$ respectively) with the ground state must be known or estimated. This means that a precise gate
+%count to prepare the ground state is not known without knowledge of the 
+%overlap between the trial and ground states.
+
+%Similarly, ground state preparation using adiabatic+quantum phase estimation
+%(QPE) as proposed in, e.g. ref. \citenum{Bauer2016}, requires knowledge of the 
+%spectral gap $\Delta$ of the system, and the adiabatic state preparation procedure 
+%scales as \bigo{\frac{1}{\Delta^2}}, while QPE scales as \bigo{\frac{1}{\Delta}}.
+% Thus, to make an informed estimate of the gate count of the adiabatic+QPE 
+% procedure, one needs information about the spectrum of the system, and this 
+% procedure becomes extremely prohibitive for a small spectral gap. Other 
+% schemes use variational methods \cite{PhysRevResearch.2.033281} to prepare 
+% the ground state. Variational state preparation methods\cite{Wecker2015, Peruzzo2014} have their own issues, e.g. getting stuck in a false minimum 
+% for the ground-state energy. It is not known exactly how many gates will 
+% need to be employed in order to iterate the variational scheme to a required
+% precision.
+ %These approaches also have the disadvantage that, while implementing a given variational ansatz may be efficient (e.g., coupled-cluster ansatz \cite{Peruzzo2014} and VHA\cite{Wecker2015}), doing so requires a system-dependent number of iterations to reach the ground-state energy while also being susceptible to gate synthesis errors. 
+
+%
+Here, we present a quantum-classical algorithm for calculating the single-particle Green’s function that avoids complex ground state preparation on quantum computers, replacing this step by a simple product state preparation. To achieve this, we use the single coupled cluster amplitude obtained from fully converged classical coupled cluster calculations to construct the quantum measurement of the time-evolved unitary components of the non-Hermitian CCGF. This allows us to extract the value of the Green’s function in the time domain (see Fig. \ref{fig:algorithm} for the full algorithm). We find that using quantum computing algorithms for unitary time dynamics, our formalism can calculate the impurity Green's function of our benchmark system, the Anderson impurity model, at time $t$ to precision $\epsilon = \epsilon_s + \epsilon_m$
+with a total $T$-gate cost of 
+$$
+\mathcal{O} \big((1-P_f)^{-1} \epsilon_s^{-1/2} \sqrt{t^3} N_\mathrm{bath}^5 \epsilon_m^{-2}\big). 
+$$
+Here, $P_f$ is the probability of 
+failing to properly implement the linear combination of unitary operators, $\epsilon_s$
+is the synthesis error introduced by the time evolution operator, $t$ is the 
+total evolution time, $N_{\text{bath}}$ is the number of bath sites in 
+the AIM, and $\epsilon_m$ is the error introduced by the measurement scheme 
+used.
+
+
+
+
+The structure of the paper is as follows:  Section \ref{sec:results} describes the Anderson impurity model, the commonly used methods to solve it, and their pitfalls. This section also
+includes the time 
+evolution and coupled-cluster quantities used in our example implementations of a two and three site AIM. Here, we also show the results obtained on a quantum simulator against
+the exact solutions for the two-level and three-level Anderson impurity 
+models. For a two-level system, we used the quantum 
+circuit simulator from Qiskit \cite{Qiskit}. For the 
+three-level system, we used the matrix form of all 
+relevant operators, and calculated the required 
+expectation values using matrix multiplication. This section also 
+includes error analysis and gate count scaling for the quantum-classical hybrid method.
+Finally, Sec. \ref{sec:conclusions} provides additional 
+discussion of our results and possible avenues for future 
+research using this method.
+Section 
+\ref{sec:methods} introduces the traditional coupled-cluster method, and our 
+fermion-to-unitary mapping. Also in this section is a 
+comparison of the scaling for different schemes to 
+implement time evolution, and an overview of the LCU method used for measurement. This section also includes the description of the algorithm as a whole, see fig. \ref{fig:algorithm}.
+Appendix \ref{sec:ccstuff} gives the full derivation of 
+the CCGF fermion-to-unitary mapping presented in section 
+\ref{sec:methods}.
+%Appendix \ref{sec:gates} presents the complexity of the 
+%second-order symmetric time-evolution operator with FFFT in terms of
+%gate count as a function of system size, as proposed in ref. \citenum{Kivlichan2020}.  
+
+%
+%
+
+
+
+\section{Results and Discussions} \label{sec:results}
+\noindent \textbf{Anderson Impurity Model (AIM)}
+The Anderson impurity model (AIM)~\cite{Anderson1961} has played an essential role in developing our understanding of localized fermionic degrees of freedom coupled to a continuum~\cite{Mahan1990}. The model describes localized magnetic moments embedded in a sea of conduction electrons and is closely related to the Kondo problem \cite{Schrieffer1966, AIMReview}. It also plays a 
+central role in dynamical mean-field theory (DMFT) 
+\cite{Georges1996}, where a problem on an infinite lattice  is mapped onto an AIM whose parameters are determined self-consistently to reproduce the physics of the original problem.
+
+\textcolor{red}{SJ: This paragraph belongs in methods.}
+\tk{
+The Hamiltonian for the AIM is given by  
+\begin{eqnarray*} \nonumber
+    H_\mathrm{AIM}&= \sum_{i,\sigma} \left(\epsilon^{\phantom\dagger}_i-\mu\right) \hat{n}_{i,\sigma}^{\phantom\dagger} + U\hat{n}_{0,\uparrow}\hat{n}_{0,\downarrow} \\
+    & 
+    + \sum_{i,\sigma} V^{\phantom\dagger}_i \left( c_{0 \sigma}^{\dagger} 
+    c_{i, \sigma}^{\phantom\dagger} + c_{i,\sigma}^{\dagger} c^{\phantom\dagger}_{0, \sigma} \right).\label{AM}
+\end{eqnarray*}
+Here, $i$ is an orbital index, where $i = 0$ corresponds to the impurity site and $i=1,\dots,N_\mathrm{bath}$ correspond to the energy levels of the continuum, $U_c$ is the Coulomb repulsion on the impurity site, $V_i$ is the hybridization parameter that allows hopping between the bath and impurity levels, $\epsilon_i$ is the energy of each level, and $\mu$ is the chemical potential, which controls the total particle number.  }
+
+The memory requirements of classical methods used to solve this model, e.g. ED, are alleviated by quantum computers. This makes quantum algorithms solving the AIM a popular approach in the literature \cite{Bauer2016, Bravyi2017, Jaderberg2020, Kreula2016}. 
+Small-scale quantum DMFT and CCGF calculations adapted to the noisy intermediate scale quantum (NISQ) hardware have also begun to appear \cite{rungger2020dynamical, Keen_2020, PhysRevA.101.012330, PhysRevResearch.2.033281}. 
+
+
+%\tk{sign problem in QMC has relative errror $\Delta \text{sgn} \sim \exp{-\beta \Delta F}/\sqrt{M}$, where $\Delta F$ denotes the change in free energy between the system and the system with artificial positive weights, $\beta$ is the inverse temperature, and $M$ is the total number of measurements of the sign taken. See Ref. \citenum{Gull2011} for a complete discussion. }
+
+
+%With this symmetric second-order expansion, the additive Trotter error can be bounded as \cite{Childs2019}
+%\begin{widetext}
+%\begin{equation} \label{eq:trot_err}
+%    \begin{split}
+%        \norm{\mathscr{S}_2(t) - e^{-itH}} \leq
+%        & 
+%        \dfrac{t^3}{12}  
+%        \sum\limits_{\gamma_1 = 1}^\Gamma \bigg(\norm{ A_{\gamma_1, \gamma_2, \gamma_3}} 
+%        \\[3ex] &
+%        + 
+%        \dfrac{1}{2} 
+%         \norm{ B_{\gamma_1, \gamma_2, \gamma_3}} \bigg),
+%    \end{split}
+%\end{equation}
+%\end{widetext}
+%where 
+%\begin{equation} \label{eq:trot_err2}
+%\begin{split}
+%        & A_{\gamma_1, \gamma_2, \gamma_3} = \comm{ 
+%        \sum\limits_{\gamma_3=\gamma_1
+%       +1}^\Gamma H_{\gamma_3}}{\comm{\sum\limits_{\gamma_2=\gamma
+%        _1+1}^\Gamma H_{\gamma_2}}{H_{\gamma_1}}} \\ &
+%B_{\gamma_1, \gamma_2, \gamma_3} = \comm{ 
+%        H_{\gamma_1}}{\comm{H_{\gamma_1}}{\sum\limits_{\gamma_2=
+%        \gamma_1+1}^\Gamma H_{\gamma_2}}}.
+%\end{split}
+%\end{equation}
+\noindent \textbf{Two and Three-Site Examples}
+To demonstrate our method, we employed this hybrid quantum-classical algorithm to compute the many-body CCGF of AIM with $N_\mathrm{bath} = 1$ and $2$ and compared our results with the exact solutions. For the $N_\mathrm{bath} = 1$ case, we employ four qubits on the quantum simulator within the qiskit framework\cite{Qiskit} to represent the model system with qubit \#1 and \#3 denoting the impurity site, and use a trial vector $|\Phi\rangle = |0110\rangle$. For the lesser CCGF, $G^{<}_{\text{imp}}$, the set $\bf{W}$ then only includes two elements $\{ \tilde{X}_3$, $\tilde{X}_1\tilde{X}_2\tilde{X}_3  \}$, which constitute $G^{<}_{\text{imp}}$ from only three terms
+%
+\begin{eqnarray}
+G^{<}_{\text{imp}} &\Leftarrow & \Big\{\langle \tilde{X}_3\mathcal{U}(t)\tilde{X}_3\rangle, \langle \tilde{X}_3\mathcal{U}(t)\tilde{X}_1\tilde{X}_2\tilde{X}_3\rangle, \notag \\
+& &\langle \tilde{X}_3\tilde{X}_2\tilde{X}_1\mathcal{U}(t)\tilde{X}_1\tilde{X}_2\tilde{X}_3\rangle \Big\}
+\end{eqnarray}
+with the coefficient for each term determined from the product of the elements of $\{\mu_i\}$ and $\{\nu_i\}$ ($i=1,2$) as demonstrated in Eq. (\ref{lesser}). The same strategy can be easily extended to an AIM with more bath levels. For example, for simulating a three-level model, six qubits can be employed to represent the model system with two qubits denoting the impurity site, and the trial vector is given by $|110010\rangle$. In this case, computing the lesser CCGF Green's function $G^{<}_{\text{imp}}$ requires a set $\bf{W}$ with six elements $\{ \tilde{X}_3$, $\tilde{X}_5\tilde{X}_1\tilde{X}_3$, $\tilde{X}_4\tilde{X}_2\tilde{X}_3$, $\tilde{X}_6\tilde{X}_2\tilde{X}_3$, $\tilde{X}_5\tilde{X}_4\tilde{X}_2\tilde{X}_1\tilde{X}_3$, $\tilde{X}_5\tilde{X}_6\tilde{X}_2\tilde{X}_1\tilde{X}_3  \}$, such that  $G^{<}_{\text{imp}}$ is given by a sum over twenty-one terms. However, based on our previous finding, these twenty-one terms can be reduced to just three terms related to only two elements of the set $\mathbf{W}$,  $\{\tilde{X}_3,\tilde{X}_4\tilde{X}_2\tilde{X}_3\}$.
+
+
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=0.99\linewidth, keepaspectratio]{Gimpt.pdf}
+    \caption{Impurity Green's function in the time domain for the $N_\mathrm{bath}=1$ AIM model in a strongly Mott-insulating regime with $U_c=8t^*$. \textbf{a}~A possible initial guess for the DMFT parameters $V=t^*$. \textbf{b}~The impurity Green's function obtained for AIM parameters typical of DMFT applications at self-consistency in the Mott insulating regime $V \to 0$.}
+    \label{fig:gimpt}
+\end{figure}
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.99\linewidth, keepaspectratio]{3_gimpt.pdf}
+    \caption{Impurity Green's function in the time domain for the $N_\mathrm{bath}=2$ AIM model at half-filling in a strongly Mott-insulating regime with $U_c=8t^*$. \textbf{a}~A possible initial guess for the DMFT parameters $V_1 = V_2 \approx 0.63, \epsilon_1 = -\epsilon_2 \approx 0.39$. \textbf{b}~The impurity Green's function obtained for AIM parameters at self-consistency in the DMFT loop $V_1 \approx 1.0, V_2 \approx  0.15, \epsilon_1 \approx -4.13,  \epsilon_2 \approx 6.1$.}
+    \label{fig:3gimpt}
+\end{figure}
+
+For our two-site example, at half-filling and a parameter set $\epsilon_0 - \mu = \frac{U_c}{2}, \epsilon_1 - \mu = 0$, this second-order expansion consists of only four terms 
+\begin{eqnarray*}
+\mathcal{U} (\Delta t)&=& e^{-\text{i} \frac{\Delta t}{2} \frac{U_c}{4} Z_1 Z_3 } \ 
+e^{-\text{i} \Delta t \frac{V}{2} (X_1 X_2 + Y_1 Y_2) }\\[2ex]& \times &
+e^{-\text{i} \Delta t \frac{V}{2} (X_3 X_4 + Y_3 Y_4) } \
+e^{-\text{i} \frac{\Delta t}{2} \frac{U_c}{4} Z_1 Z_3 },
+\end{eqnarray*}
+where we used the fact that the inner terms commute past each other and can be recombined. 
+Similarly for the three-site example, we separate the 
+potential $(U_c, \epsilon, \text{ and } \mu)$ term from the hopping $(V)$ term and implement them as a second order symmetric product formula. However, for our two and three-site examples,
+we do not implement the more advanced Trotter (FFFT) method and 
+instead implement the terms directly. 
+
+Figure \ref{fig:gimpt} shows the impurity Green's function in the time 
+domain for the two-site AIM. 
+We then fast-fourier transform (FFT) the time domain Green's function to obtain the spectral functions for 
+the two-level problem, as shown in Fig. \ref{fig:spectral}. For the three-site system, we also tested the dependence of the solution on the number of Trotter steps taken per time step, and found that the impurity Green's function in the time domain, shown in fig. \ref{fig:3gimpt}, had little dependence on the number of Trotter steps taken for our choice of parameters and time step size, leading to the data for 8 Trotter steps per time step and 32 Trotter steps per time step essentially coinciding. Data for 4 and 16 Trotter steps is omitted from fig. \ref{fig:3gimpt} for figure clarity (they were obscured by the other data). Corresponding spectral function data for the three-level problem are shown in Fig. \ref{fig:3_site_spec}, also with differing numbers of Trotter steps per time step.
+In both cases, our simulations were conducted for parameters that typically arise in the self-consistent DMFT loop, along with a parameter set that corresponds to the final self-consistent solution. 
+
+
+
+In  all cases, our hybrid quantum-classical algorithm reproduces the exact results obtained by exact diagonalization. 
+\\
+
+
+\noindent{\bf{Error Analysis and Gate Count Scaling}}
+Suppose we want to calculate the impurity Green's 
+function of an AIM with $N_{\text{bath}}$ bath sites in the time domain, to 
+within a total error
+$\epsilon$ for a total time $t$. We consider two main 
+contributions to 
+$\epsilon$, namely the synthesis error $\epsilon_s$
+from implementing the time evolution operator, and 
+$\epsilon_m$ due to statistical errors in the 
+measurement scheme. Here, we propose utilizing 
+LCU with the Hadamard test to measure the entire 
+impurity Green's function 
+in the time domain with one circuit, using the Trotter (FFFT) 
+method to approximate the time evolution operator. 
+Alternatively, one could 
+measure each expectation value in eq. \ref{lesser}
+separately with the Hadamard test, again using
+the Trotter (FFFT) method of ref. 
+\citenum{Kivlichan2020} to approximate the time 
+evolution operator. In our example of the two-site model, we use
+the Hadamard test method for convenience of implementation.
+
+
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=0.99\linewidth, keepaspectratio]{two_site_spec.pdf}
+    \caption{Spectral function in the frequency domain for the two site AIM model at half-filling in a strongly Mott-insulating regime with $U_c=8t*$ with broadening $\delta=0.1$. \textbf{a}~Spectral function for a  possible initial guess of the DMFT parameter $V=t*$. \textbf{b} Spectral function at the self-consistent DMFT solution $V \to 0$.}
+    \label{fig:spectral}
+\end{figure}
+
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=0.99\linewidth, keepaspectratio]{spec3.png}
+    \caption{Spectral function in
+    the frequency domain for the 
+    three site AIM model in a  
+    strongly Mott-insulating  
+    regime with $U_c=8t*$ with 
+    broadening $\delta= 
+    0.1$. {\bf a} Spectral function for
+    a possible initial guess of 
+    the DMFT parameters $V_1 = V_2 \approx 0.63, \epsilon_1 = -\epsilon_2 \approx 0.39$. {\bf b} Spectral function at the parameters for the
+    self-consistent DMFT 
+    solution  $V_1 \approx 1.0, V_2 \approx  0.15, \epsilon_1 \approx -4.13,  \epsilon_2 \approx 6.1$. }
+    \label{fig:3_site_spec}
+\end{figure}
+
+
+With the LCU method, for a given failure probability $P_f$, measurement error
+tolerance $\epsilon_m$, and a number of gates $N_g$ required to implement the multiple controlled unitary operators, we need to use $(1-P_f)^{-1} 
+N_g \epsilon_m^{-2}$ gates to successfully measure the full impurity 
+Green's function. Here we use the convention that the variance in a 
+single measurement is $\epsilon_m$, and grows as $\epsilon_m = \frac{1}{\sqrt{N_s}}$ with $N_s$ the number of samples taken. In this case, the number
+of ancilla qubits required to implement the LCU will grow as $\mathcal{O}
+(\log(N_{\text{bath}}^2))$, plus one ancilla for the Hadamard test. To break the multiple controlled
+qubits into basis gates requires extra "work qubits", and the number of work qubits needed grows as the
+number of ancillas in the control register minus one. 
+This does not change the asymptotic scaling of the number of ancilla qubits required, it remains
+$\mathcal{O}(\log(N_{\text{bath}}^2))$.
+(See, e.g. \citenum{NielsenChuang} for gate construction of the multiple controlled unitaries.) 
+
+
+
+To implement the multiple controlled version of each unitary within the 
+LCU method, 
+$\mathcal{O}(\epsilon_s^{-1/2} \sqrt{t^3} N_{\text{bath}}^2)$ gates are 
+required, where $t$ is the total 
+evolution time. To implement all $\mathcal{O} (N_{\text{bath}}^2)$ multiple 
+controlled unitaries, then, requires $\mathcal{O}(\epsilon_s^{-1/2} 
+\sqrt{t^3} N_{\text{bath}}^4)$ gates. However, since 
+\emph{each} unitary will have some synthesis error due to the approximation of 
+the time evolution operator, and there will be $\mathcal{O}(N_{\text{bath}}^2)$
+time evolution operators in the full circuit, to obtain a total synthesis 
+error of $\epsilon_s$ each time evolution operator can contribute 
+$\epsilon_s/(N_{\text{bath}}^2)$ error. In the above expression, substituting 
+$\epsilon_s \to \epsilon_s/N_{\text{bath}}^2$ gives a total gate scaling of 
+$\mathcal{O}(\epsilon_s^{-1/2} \sqrt{t^3} N_{\text{bath}}^5)$. Thus, we have a full gate count of $\mathcal{O}((1-P_f)^{-1} \epsilon_s^{-1/2} 
+\sqrt{t^3} N_{\text{bath}}^5 \epsilon_m^{-2})$ to measure the impurity 
+Green's function in the time domain. This implementation has
+the advantage of only having one circuit to run, i.e.
+only one circuit to measure
+with the Hadamard test.
+
+
+If using the Hadamard test to measure each term in eq. \ref{lesser} separately, each controlled unitary 
+will require $\mathcal{O}(\epsilon_s^{-1/2} \sqrt{t^3} N_{\text{bath}}^2)$ gates, and there are 
+$\mathcal{O}(N_{\text{bath}}^2)$ controlled unitaries to be implemented
+giving a gate complexity of $\mathcal{O}(\epsilon_s^{-1/2} \sqrt{t^3} N_{\text{bath}}^4)$. Since each unitary includes time evolution with some synthesis error, we take $\epsilon_s \to \epsilon_s/N_{\text{bath}}^2$.
+Similarly, for each of the unitary operators to be 
+measured, the measurement error 
+$\epsilon_m$ grows as $1/\sqrt{N_s}$, where $N_s$ is the number of samples taken. Thus, to measure all of the 
+$\mathcal{O}(N_{\text{bath}}^2)$
+terms to a total measurement error $\epsilon_m$, $N_s = \mathcal{O} \Big( N_{\text{bath}}^2/\epsilon_m^{2} \Big)$ total samples are required. Substituting $\epsilon_m \to \epsilon_m/N_{\text{bath}}^2$  gives a total gate
+scaling of $\mathcal{O}(\epsilon_s^{-1/2} \sqrt{t^3} N_{\text{bath}}^9\epsilon_m^{-2})$
+
+
+
+
+
+\section{Conclusions} \label{sec:conclusions}
+%
+We have presented a hybrid quantum-classical approach for calculating 
+the time-domain  impurity Green's function of the AIM using 
+coupled-cluster method. In this approach, we built a rigorous but 
+straightforward fermion-to-unitary mapping for the non-unitary CCGF 
+exponential operators, and combine the cluster amplitudes calculated 
+using classical coupled cluster method with the measurement of 
+time-evolution operators on a quantum device to extract the impurity 
+Green's function in the real-time domain. On the quantum end, this 
+approach bypasses the need to prepare the ground state and can be easily
+generalized. \tk{We find that, if using the LCU measurement scheme 
+outlined here with the Trotter (FFFT) time evolution procedure, this 
+method has a T-gate count that scales as 
+$\mathcal{O}((1-P_f)^{-1} \epsilon_s^{-1/2} 
+\sqrt{t^3} N_{\text{bath}}^5 \epsilon_m^{-2})$ with no state preparation.} Preliminary 
+demonstration of our approach for the two- and three-level AIM models on
+a quantum simulator exhibit excellent agreement with the exact 
+solutions. Further complexity analysis of the employed second-order 
+symmetric time-evolution operator exhibits comparable scaling of the 
+gate counts (as a function of system size) in comparison with other 
+state-of-the-art time evolution schemes.\\
+\tk{This work provides a novel scheme for calculating the time-domain
+impurity Green's function which bypasses the need for state preparation, and thus could be extremely useful for situations where there is little
+information about the ground state of the system or the spectral gap is 
+small. Something about extending this loop to do a full DMFT loop that could potentially compete with state of the art classical methods or no?}
+
+\section{Methods} \label{sec:methods}
+\begin{figure*}
+    \centering
+    \includegraphics[width=0.75\linewidth, keepaspectratio]{algo2.png}
+    \caption{Flowchart for the quantum-classical coupled-cluster Anderson impurity model solver. Here, $\mathbf{W}$ is the set of unitaries obtained using the CCGF fermion-to-unitary mapping.}
+    \label{fig:algorithm}
+\end{figure*}
+ Given time $t$, a many-body electron system with a model Hamiltonian $H$, and $\varepsilon >0$, our goal is to construct an algorithm to compute the time-dependent, retarded(advanced), single-particle, zero-temperature Green's function $G_{pq}^{<}(t)$ ($G_{pq}^{>}(t)$) with the error of at most $\varepsilon$. By definition, 
+$$
+\text{i} G_{pq}^{<}(t) = \theta(t) 
+\expval{\{ c^{\phantom{\dagger}}_{p}(t), 
+c^{\dagger}_{q}(0) \}}{\text{GS}},
+$$
+$$
+\text{i} G_{pq}^{>}(t) = \theta(t) 
+\expval{\{ c^{\dagger}_{p}(t), 
+c^{\phantom{\dagger}}_{q}(0) \}}{\text{GS}},
+$$
+where $c_{p,q}^{\phantom{\dagger}}(t)=e^{itH}c_{p,q}^{\phantom{\dagger}}(0)e^{-itH}$ is the fermionic 
+annihilation operator and $|\text{GS}\rangle$ is the ground state of $H$. 
+%Specifically, we will consider the single-impurity Anderson model (SIAM) which plays a central role in DMFT.
+%In this section, we start with a discussion of the single-impurity Anderson model we use to benchmark our method. 
+At the high level, our algorithm to compute $G_{pq}^{<}(t)$ or $G_{pq}^{>}(t)$ has three main components that address the following sub-tasks:
+\begin{enumerate}
+    \item Ground State Preparation: we use a scheme derived from coupled-cluster methods to avoid the problem of needing to prepare the ground state.
+    \item Time Dynamics: Multiple methods can be used here, see Tbl. \ref{tab:scaling}.
+    \item Measurement: We propose using the linear combinations of 
+    unitaries\cite{Childs2012} (LCU) to allow us to measure all needed time-dependent 
+    expectation values in the Green's function with one quantum circuit.
+\end{enumerate}
+
+As discussed in the introduction, for many quantum or quantum-
+classical algorithms the bottleneck lies in preparing the ground state of the system.
+The novel part of our method is in the state preparation procedure. 
+Using coupled-cluster methods allows us approximate
+ground state of the system, and instead only requires us to 
+prepare a simple product trial state. This is done by approximating the cluster operators with a linear combination of unitary operators. For measurement, we propose 
+utilization of 
+the Hadamard test, either in conjunction with LCU or by itself. The 
+Hadamard test utilizes a single ancilla qubit which controls the 
+implementation of the unitary that we want the expectation value of. 
+By using LCU, we can implement the entire sum of the unitary 
+operators needed with one circuit, and use the Hadamard test to 
+calculate the entire impurity Green's function.
+%propose a method for calculating the impurity Green's function in 
+%the 
+%time domain that circumvents the issue of state 
+%reparation using coupled-cluster methods. We 
+%ropose the use of various schemes for time dynamics and 
+%utilize LCU in order to measure the impurity 
+%Green's function with the quantum device. Using LCU for measurement requires just one circuit to be run for 
+%measurement, which will be repeated many times.
+%The full algorithm is summarized in Fig. \ref{fig:algorithm}.
+
+
+%\noindent\textbf{The Anderson Impurity Model.} 
+%
+
+%Since the AIM is central to DMFT applications, we will benchmark our CCGF approach in the context of this problem. DMFT is a framework that  approximates the full lattice model by an AIM through a self-consistent mapping. (In this context,  the continuum levels are often referred to as ``bath" levels, and we will use this language throughout the paper.) Here, our discussion is based on the AIM appearing in DMFT treatments of the single-band Hubbard model on a Bethe lattice in the infinite coordination limit. If an infinite number of bath sites are used, then the mapping between the lattice model and the AIM model becomes exact for this problem \cite{Georges1996}. The Bethe lattice in the limit of infinite coordination also provides natural energy scale to work with, namely the normalized hopping $t^*$. In this work, we focus on solving a Mott-insulating system, i.e. $U > 6t^*$, at half-filling to see if we are able to identify the Mott gap in the spectral function. We also will consider sets of model parameters ($V_i$ and $\epsilon_i$), which typically arise in executing the DMFT self-consistency loop for the single-band Hubbard model. 
+
+%The main quantity of interest in DMFT is the impurity site Green's function. For this reason, we used our approach to compute the coupled-cluster Green's function for the impurity site in the AIM. These coupled-cluster quantities give us a path to computing the impurity Green's function by measuring expectation values of unitary operators describing the coupled-cluster Green's function. This method also allows us to circumvent the issue of state preparation, as described in the next section.
+%Finally, we limit ourselves to a small number of bath sites; however, our method scales to larger systems. \\
+
+%\noindent{\bf The Jordan-Wigner representation of an AIM.} 
+%Using this transformation, the AIM Hamiltonian with $N_\text{bath}$ bath sites becomes 
+%
+%\begin{eqnarray*}
+%H &=& \frac U 4 \tilde{Z}_{0,\uparrow} \tilde{Z}_{0,\downarrow} - \sum_{\sigma}\Big( \frac{\epsilon_0 - \mu}{2} + \frac U 4 \Big) \tilde{Z}_{0,\sigma}   \notag \\
+%&&- \sum_{i=1,\sigma}^{N_{\text{bath}}} \frac{\epsilon_i - \mu}{2} \tilde{Z}_{i,\sigma} + \sum_{i=1,\sigma}^{N_{\text{bath}}} \frac{V_i}{2} \big( \tilde{X}_{0,\sigma} \tilde{X}_{i,\sigma} + \tilde{Y}_{0,\sigma} \tilde{Y}_{i,\sigma}  \big),
+%\end{eqnarray*}
+%
+%where $\tilde{X}_{i,\sigma}$, $\tilde{Y}_{i,\sigma}$, and $\tilde{Z}_{i,\sigma}$ are Pauli strings with corresponding Pauli operators $X$, $Y$, or $Z$ acting on the qubit corresponding to the $i$\textsuperscript{th} site with spin $\sigma$. That is 
+%
+%\begin{eqnarray*}
+%\tilde{X}_{i,\sigma} &= \Big[ \Big( \prod_{j=0,\sigma'}^{i-1} \Big)^{\otimes} Z_{j,\sigma'} \Big] \otimes X_{i,\sigma} \otimes \mathbf{1} \cdots, \notag \\
+%\tilde{X}_{i,\sigma} &=&\Bigg[  \bigotimes_{j=0,\sigma'}^{i-1}  Z_{j,\sigma'} \Bigg] \otimes X_{i,\sigma} \otimes \mathbf{1} \cdots, \notag \\
+%\tilde{Y}_{i,\sigma} &= \Big[ \Big( \prod_{j=0,\sigma'}^{i-1} \Big)^{\otimes} Z_{j,\sigma'} \Big] \otimes Y_{i,\sigma} \otimes \mathbf{1} \cdots, \notag \\
+%\tilde{Y}_{i,\sigma} &=&\Bigg[  \bigotimes_{j=0,\sigma'}^{i-1}  Z_{j,\sigma'} \Bigg] \otimes Y_{i,\sigma} \otimes \mathbf{1} \cdots, \text{and} \notag \\
+%\tilde{Z}_{i,\sigma} &= \Big[ \Big( \prod_{j=0,\sigma'}^{i-1} \Big)^{\otimes} \mathbf{1}_{j,\sigma'} \Big] \otimes Z_{i,\sigma} \otimes \mathbf{1} \cdots.
+%\tilde{Z}_{i,\sigma} &=&\Bigg[  \bigotimes_{j=0,\sigma'}^{i-1}  \mathbf{1}_{j,\sigma'} \Bigg] \otimes Z_{i,\sigma} \otimes \mathbf{1} \cdots.
+%\end{eqnarray*}
+%This mapping scheme allows us to construct the necessary unitary operators and coupled-cluster quantities required 
+%to calculate the full impurity Green's function.\\
+
+
+%%%%% CCGF
+\noindent\textbf{State Preparation}
+In this subsection, we describe the coupled-cluster methods we use to 
+approximate the ground state, and the fermion to unitary mapping that we utilize to compute the Green's function.
+As described in Refs. \citenum{nooijen92_55, nooijen93_15, nooijen95_1681}, the CCGF is built upon the CC  bi-variational exponential parametrization of the reference state $| \Phi \rangle$ of the many-body ground-state wave function of an $\rm N$-electron system $|\Psi_0^{\rm (N)}\rangle$ and its dual $\langle \Psi_0^{\rm (N)}|$
+%
+\begin{eqnarray}
+| \Psi_0^{\rm (N)}\rangle = e^T | \Phi \rangle, ~~~~
+\langle \Psi_0^{\rm (N)} | = \langle \Phi | (1+\Lambda) e^{-T}.
+\end{eqnarray}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=0.99\linewidth, keepaspectratio]{CCSDT.png}
+    \caption{An example of a trial state $\ket{\Phi}$ and a single, double, and triple excitation of the trial state.}
+    \label{fig:CCSD}
+\end{figure}
+In the language of second quantization, the cluster operator $T$ and the de-excitaiton operator $\Lambda$ can be expressed as
+%
+\begin{eqnarray}
+T &=& \sum_{k=1}^{m} \frac{1}{(k!)^2} \sum_{\substack{i_1,\ldots,i_k ; \\ a_1, \ldots, a_k}} t^{i_1\ldots i_k}_{a_1\ldots a_k} c_{a_1}^\dagger\cdots c_{a_k}^\dagger c^{\phantom\dagger}_{i_k} \cdots c^{\phantom\dagger}_{i_1} , \notag \\
+\Lambda &=& \sum_{k=1}^{m} \frac{1}{(k!)^2} \sum_{\substack{i_1,\ldots,i_k ; \\ a_1, \ldots, a_k}} \lambda_{i_1\ldots i_k}^{a_1\ldots a_k} c_{i_1}^\dagger\cdots c_{i_k}^\dagger c^{\phantom\dagger}_{a_k} \cdots c^{\phantom\dagger}_{a_1} . \label{L}
+\end{eqnarray}
+%
+Here, the indices $i_1,i_2,\ldots$ ($a_1,a_2,\ldots$) denote occupied (unoccupied) spin-orbitals in the reference $|\Phi\rangle$, the coefficients $t^{i_1\ldots i_k}_{a_1\ldots a_k}$'s and $\lambda_{i_1\ldots i_k}^{a_1\ldots a_k}$'s are scalar amplitudes, and $m$ is the excitation level ($\le N$) that defines the approximation in the CC hierarchy (e.g. $m=2$ corresponds to CC singles and doubles (CCSD) \cite{purvis82_1910}, $m=3$ corresponds to CC singles, doubles, and triples (CCSDT) \cite{ccsdt_noga,ccsdt_noga_err,SCUSERIA1988382}, etc., see Fig.~\ref{fig:CCSD}). %The CC ground-state energy ($E_{\rm CC}$) and $T$ and $\Lambda$ are determined from the standard CC equations \cite{paldus07, bartlett07_291}
+%
+%\begin{equation}\label{Eq:CC1}
+%0 = Q e^{-T} H e^T |\Phi\rangle, 
+%\end{equation}
+%\begin{equation}\label{Eq:CC2}
+%E_{\rm CC} = \langle \Phi | e^{-T} H e^T |\Phi\rangle, 
+%\end{equation}
+%and
+%\begin{equation}\label{Eq:CC3}
+%\langle \Phi | (1+\Lambda)e^{-T} H e^T Q = E_{\rm CC}\langle \Phi | (1+\Lambda)Q.
+%\end{equation}
+%
+%In Eqs.~\eqref{Eq:CC1}-\eqref{Eq:CC3}, $Q$ denotes the projection onto the subspace spanned by the Slater determinants that generated by acting $T$ on the reference $|\Phi\rangle$. 
+By employing the CC bi-variational parametrization, the time-dependent CCGF for an $N$-electron system can be expressed as
+%
+\begin{equation} 
+G_{pq}(t) =G^{<}_{pq}(t) + G^{>}_{pq}(t),\label{gfxn_t}
+\end{equation}
+where 
+\begin{equation}
+G^{<}_{pq}(t)=\langle (1+\Lambda) e^{-T} c_q^{\dagger} e^{-\text{i}2\pi(H-E_{\rm CC})t} c_p e^T \rangle
+\end{equation}
+and
+\begin{equation}
+G^{>}_{pq}(t)=\langle (1+\Lambda) e^{-T} c_p e^{+\text{i}2\pi(H-E_{\rm CC})t} c_q^{\dagger} e^T \rangle.
+\end{equation}
+%
+Here, $\langle O \rangle=\langle \Phi | O | \Phi \rangle$ denotes the expectation value of an operator $O$ with respect to the reference $|\Phi\rangle$ and $\eta$ is a broadening factor. In the classical CCGF formulation, the operators appearing in Eq.~\eqref{gfxn_t} are not unitary. This method, therefore, must be modified for use on quantum computers that require unitary operations.\\ 
+
+%\noindent\textbf{CCGF Fermion-to-unitary mapping.} 
+We now illustrate how to develop a unitary formulation of the CC method using the lesser [$G^{<}_{pq}(t)$] part in Eq. (\ref{gfxn_t}). Similar considerations apply to the greater term, $G^{>}_{pq}(t)$. We have found that at least one set of $m$ unitaries $\mathbf{W} = \{ W_1, W_2, \cdots, W_m \}$ can be employed to expand 
+$c_p e^{T} | \Phi \rangle = \sum_i \mu_i W_i | \Phi \rangle$ and
+$\langle \Phi |(1+\Lambda) e^{-T} c_q^\dagger = \sum_i \nu_i \langle \Phi | W_i^\dagger$ 
+with the scalar coefficients $\{\mu_i\}$ and $\{\nu_i\}$ such that Eq. (\ref{gfxn_t}) can be fully unitarized. If we limit our discussion to the impurity Green's function in the CCSD framework (i.e. $T \approx T_1+T_2 = \sum_{ai}t_i^a \hat{E}^a_i + \sum_{a<b,i<j} t_{ij}^{ab} \hat{E}^{ab}_{ij}$ with $\hat{E}^{ab\cdots}_{ij\cdots} = c_a^\dagger c_b^\dagger \cdots c^{\phantom\dagger}_j c^{\phantom\dagger}_i$ for $a,b\in S$ and $i,j\in O$, with $S$ and $O$ being 
+%
+\st{numbers of spin-orbitals in}
+%
+the virtual and occupied subspace, respectively) and the index $p\in O$ designates the half-filled impurity site, then one option for $\textbf{W}$ is (see detailed derivation in supplement \ref{sec:ccstuff})
+
+%
+\begin{eqnarray*}
+\mathbf{W} &=&\Big\{ 
+\{\tilde{X}_p\}, \{ \tilde{X}_a \tilde{X}_i \tilde{X}_p\}_{a,i\neq p},\notag \\
+& &~\{\tilde{X}_a \tilde{X}_b \tilde{X}_j \tilde{X}_i \tilde{X}_p\}_{a<b,i<j,i\neq p, j\neq p} \Big\}, 
+\end{eqnarray*}
+%
+where $\tilde{X}_i$ denotes an $X$ Pauli operator (or gate) acting on the $i$\textsuperscript{th} spin-orbital (or qubit) with $Z$ Pauli operators acting on all qubits before it in our ordering.
+and \bp{$m \sim \mathcal{O}(N_s^2N_o^2) \sim \mathcal{O}(N_{\rm bath}^4)$ ($N_s$ and $N_o$ denote the numbers of virtual and occupied spin-orbitals respectively).} 
+%\tk{
+%To obtain these quantities in terms of spin operators for use on a quantum device, we encode the fermionic degrees of freedom into spin representation using the standard Jordan-Wigner transformation 
+%
+%}
+%
+\st{$m = 1 + N_aN_i + N_aN_\text{b}N_iN_j$ given $\hat{E}^a_i |\Phi\rangle \neq 0$ and $\hat{E}^{ab}_{ij} | \Phi \rangle \neq 0$.} 
+%
+The coefficients $\{\mu_i\}$ and $\{\nu_i\}$ are given by cluster amplitudes (see supplement \ref{sec:ccstuff}). Note that the CCSD ground state energy for a general AIM with one impurity site only depends on the single amplitude, i.e. $\Delta E_{\text{CCSD}}=\sum_{i=1}^{N_{\text{bath}}}V^{\phantom\dagger}_i t_0^i$ since the double amplitudes in a CCSD calculation of AIM are only used to converge the single amplitudes corresponding to the excitation from the impurity to the bath. Thus, if we only use the converged $T_1$ amplitude to construct (or approximate) the correlated wave function, the associated ground state energy will be exactly same as the CCSD correlation energy but the number of unitary vectors $m$ is greatly reduced from $\mathcal{O}(N_{\text{bath}}^4)$ to $\mathcal{O}(N_{\text{bath}})$. \tk{We have eliminated the state preparation component of the 
+simulation using coupled-cluster methods, but we still need to be able to simulate the dynamics of the system to obtain 
+the time-dependent Green's function.}
+
+%We still need to be able to simulate the time dynamics of the system to calculate the values in Eq. \eqref{gfxn_t} and thus construct the impurity Green's function, however. In our case, we opt to use a simple 
+%symmetric product formula to approximate the time evolution operator.
+
+\renewcommand{\arraystretch}{2.1}
+\begin{table*}[t]
+\centering
+%\resizebox{\textwidth}{!}{%
+\begin{tabular}{cccccc}
+\rowcolor[HTML]{EFEFEF} 
+\textbf{Algorithm} & \textbf{Ref.} & \textbf{Ancilla Qubits}&  \textbf{Query 
+Complexity (t, $\mathbf{\epsilon}, \mathbf{N_\mathrm{bath}}$)} & \textbf{Gate/Query} & \textbf{Total Gate Count } \\ \hline
+Trotter (FFFT)     & \citenum{Kivlichan2020} & 0 & - & - &$\mathcal{O} \bigg(\epsilon_s^{-1/2} \sqrt{t^3} N_\mathrm{bath} \log_2(N_\mathrm{bath})\bigg)$     
+ \\ \hline
+\rowcolor[HTML]{EFEFEF} 
+Taylor Series          & \citenum{BerryTaylor2015,Wan2021} & $\mathcal{O} 
+\big( \log(N_\mathrm{bath}) f(\norm{\vec{\alpha}}_1 t/\epsilon_s)\big)$ & $\mathcal{O}\big( \norm{\vec{\alpha}}_1 t f(\norm{\vec{\alpha}}_1 t/\epsilon_s)\big) $ & $\mathcal{O}\big(N_\mathrm{bath} \big)$  & $\mathcal{O} 
+\big( \norm{\vec{\alpha}}_1 
+t N_\mathrm{bath}  f(\norm{\vec{\alpha}}_1 t/\epsilon_s)\big)$   \\ \hline
+Qubitization & \citenum{Low2019, Wan2021} & $\ceil*{\log{N_\mathrm{bath}}}+2$ & $\mathcal{O} \big(\norm{\vec{\alpha}}_1 t + f(1/\epsilon_s) \big)$ & $\mathcal{O} (N_\mathrm{bath})$  & $\mathcal{O}\big( N_\mathrm{bath} (\norm{\vec{\alpha}}_1 t + f(1/\epsilon_s)) \big)$
+\end{tabular}%
+%}
+\caption{Number of required ancillae and T-gate count scaling as a function of allowed error in time evolution $\epsilon_s$, total evolution time $t$, and the number of bath sites $N_{\text{bath}}$ for three common time evolution procedures. Here, we take $H=\sum_{i=1}^L \alpha_i H_i$ and define $f(\eta) = \tfrac{\log(\eta)}{\log \log(\eta)}$.}
+\label{tab:scaling}
+\end{table*}
+
+\noindent{\bf{Time evolution}} There are multiple options for approximating the time evolution operator. One  
+method is to use a symmetrized Trotter formula with an fermionic fast-fourier transform (FFFT) as described in Ref. \citenum{Kivlichan2020}. In this case, we separate the 
+potential $(U_c, \epsilon, \text{ and } \mu)$ term from the hopping $(V)$ term and implement them separately as $\mathcal{U}(t)\approx e^{-\text{i} \frac{t}{2} H_{\text{pot}}} e^{-\text{i} t H_{\text{hop}}} e^{-\text{i} \frac{t}{2} H_{\text{pot}}}$, as proposed in ref. \citenum{Kivlichan2020}. By implementing an FFFT between the potential and hopping terms, the hopping terms become simple single qubit rotations, which are much easier to implement.
+Note that this will require two implementations of the FFFT.
+%For an AIM with $N_\text{bath} = 1$ at  half-filling, we approximate the corresponding time propagator operator using a second order symmetric Trotter-Suzuki expansion
+%
+%\begin{eqnarray} \label{sec_ord_trotter}
+%\mathcal{U}(t) &=&e^{-\text{i} Ht} \approx   \prod\limits_{\gamma=\Gamma}^1 e^{-\text{i} \frac{t}{2} H_\gamma}
+%\prod\limits_{\gamma=1}^\Gamma e^{-\text{i} \frac{t}{2} H_\gamma}, 
+%\end{eqnarray}
+%where 
+%$H=\sum\limits_{\gamma=1}^\Gamma H_\gamma$. 
+
+For more advanced simulation methods 
+such as qubitization\cite{Low2019} and 
+Taylor series expansion 
+\cite{BerryTaylor2015}, oracles are 
+required. These oracles incur a cost 
+based on query complexity, i.e. the 
+number of times an oracle must be 
+accessed to perform the simulation. 
+These oracles must also be constructed using
+basic gates and ancilla qubits, thus 
+increasing the gate count. However, it was recently shown
+that the most expensive oracle to implement in 
+the Taylor series and Qubitization methods, the Select(H) oracle, can be implemented with just $\mathcal{O}(N)$ 
+gates\cite{Wan2021}. For a comparison of time evolution methods
+in terms of gate count, see Tbl. \ref{tab:scaling}.
+
+Once the unitary set $\bf{W}$ and time propagator operator $\mathcal{U}(t)$ are constructed, the lesser coupled cluster Green's function of the impurity site can be expressed as
+%
+\begin{equation} 
+G^{<}_{\text{imp}}(t) = \sum_{k,l}^m \nu_k \mu_l
+\langle W_k \mathcal{U}(t) W_l \rangle, \label{lesser}
+\end{equation}
+%
+where the expectation values are computed using a quantum device. Note that 
+the gate depth for $W_i$ is just $\mathcal{O}(1)$, while the number of 
+terms in eq. \ref{lesser} scales as $\mathcal{O}(m^2)$. 
+\tk{All that is left to do in order to calculate the full Green's function in the time domain is to measure all of the expectation values in 
+eq. \ref{lesser}. This can be done all in one circuit using the linear
+combination of unitaries method\cite{Childs2012} (LCU), or each
+expectation value can be measured separately. The gate count scaling of each method is described in section \ref{sec:results}.}
+
+\noindent{\bf{Measurement}}
+%The gate counts,
+%query complexities, and numbers of 
+%ancilla qubits required for three common methods to simulate 
+%time evolution of a Hamiltonian with $N=N_\mathrm{bath}+1$ fermionic 
+%orbitals  are compared in Tbl. \ref{tab:scaling}. 
+Although the 
+scaling of the number of measurements needed to calculate the Green's
+function grows \emph{quadratically} in the system size, the linear 
+combination of the expectation values needed to calculate the 
+impurity Green's function can be calculated in one circuit using the 
+linear combination of unitaries (LCU) method\cite{Childs2012}. 
+
+To implement a linear combination of $k+1$ unitary operators, LCU requires $\log(k)$ ancillary qubits. Using the LCU method to measure the impurity Green's function of the AIM thus requires  $k\sim\mathcal{O}(N_{\text{bath}}^2)$, and  the number of required ancilla qubits therefore grows as  $\log(N_{\text{bath}}^2)$. From theorem 3 of Ref. \citenum{Childs2012}, we know the probability of success for this method. Consider a linear combination of unitary
+operators $R = \sum\limits_{q=1}^{k+1} C_q U_q$, with $k\geq1$, $\norm{U_q} = 1$, and $\max_{q \neq q^\prime} 
+\norm{U_q - U_{q^\prime}} \leq \Delta$. Let $\kappa = \sum_{q:C_q>0}C_q / \sum_{q:C_q<0} \abs{C_q}$. Then there exists a quantum algorithm that implements an operator proportional to $R$ with failure probability $P_f = P_+ + P_-$ where  
+$P_+ \leq {k \Delta^2}/{4}$ is the probability of failure to add two terms and 
+$P_- \leq {4\kappa}/{(\kappa+1)^2}$ is the probability of
+failure to subtract two terms. 
+We utilize this method to measure each term in \ref{lesser} with one circuit, thus reducing the measurement error.
+
+\tk{
+To measure the entire impurity Green's function in the 
+time-domain with just one circuit with LCU, we first construct 
+the circuit that implements the LCU that is comprised of all of the terms in eq. \ref{lesser}, and then measure 
+the expectation value of the LCU operator with the Hadamard 
+test.
+It is also possible to measure each expectation value in eq. 
+\ref{lesser} by using the Hadamard test with each term in an 
+independent circuit, and then combining them. The T-gate counts 
+for the LCU method and the direct Hadamard test are given
+in sec. \ref{sec:results}. Because the LCU method has a 
+failure probability, it is possible that the direct 
+Hadamard test could be advantageous in terms of gate count, 
+even though it scales worse in terms of system size.
+}
+
+
+\noindent
+{\bf Acknowledgements}: T.K. is supported by the U.S. Department of Energy, Office of Science,
+Office of Workforce Development for Teachers and Scientists, Office of Science Graduate Student Research
+(SCGSR) program. The SCGSR program is administered by the Oak Ridge Institute for Science and Education
+(ORISE) for the DOE. ORISE is managed by ORAU under contract number DE‐SC0014664. All opinions expressed
+in this paper are the author’s and do not necessarily reflect the policies and views of DOE, ORAU, or ORISE. This work was performed in part at Oak Ridge National Laboratory, operated by UT-Battelle for the U.S. Department of Energy under Contract No. DE-AC05-00OR22725. B.P. and K.K. were supported by  the ``Embedding QC into Many-body Frameworks for Strongly Correlated  Molecular and Materials Systems'' project, which is funded by the U.S. Department of Energy, Office of Science, Office of Basic Energy Sciences (BES), the Division of Chemical Sciences, Geosciences, and Biosciences. B.P. also acknowledges the support of Laboratory Directed Research and Development (LDRD) program from PNNL. T.K. and P.L. were supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research (ASCR) Quantum Algorithm Teams (QAT) and Quantum Computing Application Teams (QCATS) programs, under field work proposal numbers ERKJ333 and ERKJ347.\\
+
+\noindent{\bf Author Contributions}: T.K., B.P., K.K., and P.L. designed the study, T.K. and B.P. collected data, and produced figures. S.J. developed a classical ED code for the AIM. B.P., K.K., and P.L., supervised the research. All authors discussed the results and contributed to the final paper. \\
+
+\noindent{\bf Competing Interests}: The authors declare no competing interests.\\
+
+\noindent{\bf Data availability}: The data sets generated during the current study are available in the arXiv repository, https://arxiv.org/abs/XXXX.XXXXX.\\
+
+\noindent{\bf Code availability}: All code used to obtain the data for the current study are available in the arXiv repository, https://arxiv.org/abs/XXXX.XXXXX.\\
+\section*{References}
+\bibliography{ref3.bib}
+
+\pagebreak
+\widetext
+\begin{center}
+\textbf{\large Supplemental Materials: Hybrid quantum-classical approach for coupled-cluster Green’s function theory}
+\end{center}
+%%%%%%%%%% Merge with supplemental materials %%%%%%%%%%
+%%%%%%%%%% Prefix a "S" to all equations, figures, tables and reset the counter %%%%%%%%%%
+\setcounter{equation}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\setcounter{page}{1}
+\setcounter{section}{0}
+\makeatletter
+\renewcommand{\theequation}{S\arabic{equation}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\bibnumfmt}[1]{[S#1]}
+\renewcommand{\citenumfont}[1]{S#1}
+%%%%%%%%%% Prefix a "S" to all equations, figures, tables and reset the counter %%%%%%%%%%
+
+
+\section{Finding Unitaries $\mathbf{W}$ and scalar coefficients $\{ \mu_i \}$.} \label{sec:ccstuff}
+
+%\noindent
+%\textbf{Finding Unitaries $\mathbf{U}$ and scalar coefficients $\boldsymbol{\{}\boldsymbol{\mu}_\mathbf{i}\boldsymbol{\}}$.}
+If index $p\in O$ denotes impurity site, then one option of $\mathbf{W}$ can be obtained through the Jordan-Wigner mapping of the transformed $c_p e^T|\Phi\rangle$. \tk{Here, we use the Jordan-Wigner transformation given by 
+\begin{equation}
+\begin{split}
+& c_{j\downarrow}^\dagger = \frac{1}{2} \bigotimes_{k=0}^{j-1} Z_k (X_j - i Y_j) \\[1em]
+& c_{j\uparrow}^\dagger = \frac{1}{2} \bigotimes_{k=0}^{N_{\text{bath}} + j} Z_k (X_{N_{\text{bath}} + j+ 1} - i Y_{N_{\text{bath}} + j+ 1}),
+\end{split}
+\end{equation}
+where the first $N_\text{bath} + 1$ qubits hold the down occupation information for each site, and the second $N_\text{bath} + 1$ qubits hold the up occupation information for each site.}
+In the CCSD approximation, this can be expressed as
+%
+%\begin{widetext}
+\begin{eqnarray*}
+c_p e^T |\Phi \rangle &\approx&
+c_p \Big( 1 + \sum_{ai} t_i^a c_a^\dagger c_i 
++ \sum_{a<b,i<j} \tilde{t}_{ij}^{ab} c_a^\dagger c_b^\dagger c_j c_i \Big) | \Phi \rangle \notag \\
+&=& 
+\Big( 1 + \sum_{a,i\neq p} t_i^a c_a^\dagger c_i 
++ \sum_{\substack{a<b,i<j\\i\neq p,j\neq p}} \tilde{t}_{ij}^{ab} c_a^\dagger c_b^\dagger c_j c_i \Big) c_p | \Phi \rangle \notag \\
+&=& 
+\Big( 1 + \sum_{a,i\neq p} t_i^a \big( c_a^\dagger + c_a \big) \big( c_i + c_i^\dagger \big)
++ \sum_{\substack{a<b,i<j\\i\neq p,j\neq p}} \tilde{t}_{ij}^{ab} \big( c_a^\dagger + c_a \big) \big( c_b^\dagger + c_b \big) \big( c_j + c_j^\dagger \big) \big( c_i + c_i^\dagger \big)\Big) \big( c_p + c_p^\dagger \big)  | \Phi \rangle \notag \\
+&=&\Big( 
+\tilde{X}_p + \sum_{a,i\neq p} t_i^a \tilde{X}_a\tilde{X}_i\tilde{X}_p
++ \sum_{\substack{a<b,i<j\\i\neq p,j\neq p}} \tilde{t}_{ij}^{ab} \tilde{X}_a \tilde{X}_b \tilde{X}_j \tilde{X}_i \tilde{X}_p \Big) | \Phi \rangle, \label{ap}
+\end{eqnarray*}
+where $\tilde{t}_{ij}^{ab} = t_{ij}^{ab} + t_i^a t_j^b - t_i^b t_j^a$. The $\bf{W}$ can then be chosen as $\big\{\tilde{X}_p, \{\tilde{X}_a\tilde{X}_i\tilde{X}_p\}_{a,i\neq p}, \{\tilde{X}_a\tilde{X}_b\tilde{X}_j\tilde{X}_i\tilde{X}_p\}_{a<b,i<j,i\neq p, j\neq p}$, and the scalars $\{\mu_i\}$ are the corresponding cluster amplitudes in (\ref{ap}).
+%
+$\langle \Phi |(1+\Lambda) e^{-T} c_q^\dagger$ can be expanded by the same set $\bf{W}$ with the corresponding scalars given by
+%
+\begin{eqnarray*}
+\langle (1+\Lambda)e^{-T} c_q^\dagger c_p \rangle &=& 
+\delta_{pq} \big( 1 - \sum_{i,a}\lambda_a^i t_i^a - \sum_{i<j,a<b} \lambda_{ab}^{ij} \tilde{t}_{ij}^{ab} \big) -  (1 - \delta_{pq}) \big( \sum_{a} \lambda_a^p t_q^a - \sum_{i,a<b} \lambda_{ab}^{pi} \tilde{t}_{qi}^{ab} \big), \notag \\
+\langle (1+\Lambda)e^{-T} c_q^\dagger c_p c_a^\dagger c_i \rangle&=&
+\delta_{pq} \big( \lambda_a^i -\sum_{j,b}\lambda_{ab}^{ij} t_{j}^b \big) \notag - (1-\delta_{pq}) \sum_{b} \lambda_{ab}^{ip} t_q^b, \notag \\
+\langle (1+\Lambda)e^{-T} c_q^\dagger c_p c_a^\dagger c_b^\dagger c_j c_i \rangle 
+&=&\delta_{pq} \lambda_{ab}^{ij}.
+\end{eqnarray*}
+Similarly, we can transform $c_q^\dagger e^T |\phi\rangle$,
+%
+\begin{eqnarray*}
+c_q^\dagger e^T |\Phi \rangle &\approx &
+c_q^\dagger \Big( 1 + \sum_{ai} t_i^a c_a^\dagger c_i 
++ \sum_{a<b,i<j} \tilde{t}_{ij}^{ab} c_a^\dagger c_b^\dagger c_j c_i \Big) | \Phi \rangle \notag \\
+&=&
+\Big( 1 + \sum_{a\neq q,i} t_i^a c_a^\dagger c_i 
++ \sum_{\substack{a<b,i<j\\a\neq q,b\neq q}} \tilde{t}_{ij}^{ab} c_a^\dagger c_b^\dagger c_j c_i \Big) c_q^\dagger | \Phi \rangle \notag \\
+&=&\Big( 
+\tilde{X}_q + \sum_{a\neq q,i} t_i^a \tilde{X}_a\tilde{X}_i\tilde{X}_q
++ \sum_{\substack{a<b,i<j\\a\neq q,b\neq q}}\tilde{X}_j \tilde{X}_i \tilde{X}_q \Big) | \Phi \rangle,
+\end{eqnarray*}
+%\end{widetext}
+to get another set of unitaries and corresponding scalars for greater part of the coupled cluster Green's function.
+
+It is worth mentioning that the cluster amplitudes, $t$'s, in the present context are obtained from classical CCSD calculation on AIM, which numerically scales $~\mathcal{O}(N_s^2N_o^2)$ ($N_o$ denoting the number of occupied spin-orbitals and $N_s$ denoting the number of virtual spin-orbitals).
+
+
+%\section{Scaling of Gate Counts} \label{sec:gates}
+%For a number of bath sites that would compete with current classical methods, one would need to implement a Trotterized form of the hopping term of the Hamiltonian. However, to do this directly would require an iterative Trotter scheme, introducing error in each iteration. Instead, if one were to perform FFFT\citeSupp{Kivlichan2020} on the hopping term, it could then be implemented with just single-qubit rotations and the only Trotter error would come from the original split of the hopping from the potential terms. 
+
+%The fermionic fast fourier transformation (FFFT) 
+%diagonalizes the hopping terms in the 
+%Hamiltonian. If the hopping terms are 
+%diagonalized and thus require only 
+%single-qubit rotations, there is no Trotter error introduced by iteratively breaking down the exponential of the hopping term. The FFFT
+%uses two base gates, $f_\mathrm{swap}$ and $F_{k, n}$. To implement the FFFT on a system 
+%of $n$ qubits requires 
+%$$\sum\limits_{i=1}^{\log_2(n) - 1} n (n - 
+%2^{i-1}/2^i) = n(n-\log_2(8n)/2)$$
+%$f_\mathrm{swap}$ gates and $(n \log_2(n))/2 \ F_{k, 
+%n}$ gates\citeSupp{Kivlichan2020}. In terms of 
+%basis gates, each $f_\mathrm{swap}$ gate is 
+%free as it only uses four CNOT gates 
+%and two Hadamard gates. Each $ F_{k, n} $ 
+%gate uses a single qubit rotation and
+%two T gates \citeSupp{Kivlichan2020}, along
+%with three CNOT gates. 
+
+%For implementing only the Trotter (FFFT) operation,
+%the dominant gate count term is $n \log(n)$ from the $F_{k,n}$ gates. However, if the Hadamard test is used for measurement, the dominant term in the gate count becomes $n^2$ due to the need to control the 
+%$f_{\mathrm{swap}}$. 
+
+
+%
+
+%\section*{References}
+%\bibliographystyleSupp{plain}
+%\bibliographySupp{supbib.bib}
+
+
+\end{document}
+
+
+% Text removed from the introduction
+The Anderson impurity model (AIM)~\cite{Anderson1961} is a model is an essential in condensed-matter physics, which has provided the foundations for our understanding of localized fermionic degrees of freedom coupled to a continuum. The AIM is often used to account for problems involving the Kondo effect\cite{Schrieffer1966,AIMReview}. The Kondo effect describes the mechanism by which magnetic impurities in metals cause strange behaviour in the low temperature resistivity of the material. This anomalous behaviour in the resistivity is caused by spin-flip scattering between conduction electrons and the localized impurity spin. Compared to the Kondo model, which treats the local spin as a separate entity, the Anderson model treats the local spin as just another electron, which allows for the description of more interesting phenomena\cite{Mahan1990}. 
+
+The Anderson impurity model is also used to approximate the solution to the Hubbard model within the framework of dynamical mean-field theory (DMFT)\cite{Georges1996}. DMFT requires that one solves the Anderson impurity model repeatedly within a self-consistency loop. Using DMFT to approximate the solution to the Hubbard model is simpler than solving it directly due to the local electronic correlations being treated exactly, but the correlations occurring on longer length scales are treated at a mean-field level that retains their dynamics.
